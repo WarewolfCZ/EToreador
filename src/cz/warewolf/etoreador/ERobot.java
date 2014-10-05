@@ -130,4 +130,10 @@ public class ERobot {
     public void mouseMove(int x, int y) {
         robot.mouseMove(x, y);
     }
+
+    public void keyPress(int vk) {
+        robot.keyPress(vk);
+        robot.delay(8 + getRandomInt(0, 5));
+        robot.keyRelease(vk);
+    }
 }
