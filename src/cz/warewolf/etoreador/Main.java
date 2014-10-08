@@ -114,8 +114,9 @@ public class Main {
         Strategy st = new Strategy("OIL", 10);
         double tWidth = 0.0, tHeight = 0.0, sellPrice, buyPrice;
         long timestamp;
+        boolean loop = true;
         // Get instrument prices
-        for (int j = 0; j < 1; j++) {
+        while (loop) {
 
             if (!dryRun) {
                 System.out.println("Taking main screen screenshot");
@@ -160,6 +161,12 @@ public class Main {
             double profit = au.getNetProfit(screenPath);
             System.out.println("Net profit: " + profit);
 
+            if (!ia.isLongOpen(re, config, dryRun)) {
+                st.markLongClosed();
+            }
+            if (!ia.isShortOpen(re, config, dryRun)) {
+                st.markShortClosed();
+            }
             st.update(sellPrice, buyPrice, balance, equity, timestamp);
             Order o = st.getOrder();
             if (o != null && ia.getPosition() != null) {
@@ -187,7 +194,7 @@ public class Main {
                 }
             }
             
-            // robot.delay(30000, 0);
+            robot.delay(30000, 0);
         }
     }
 }

@@ -119,7 +119,7 @@ public class InstrumentAutomation {
         robot.click(pos.x, pos.y);
         robot.delay(550, 50);
         Vector<Point> vec = null;
-        System.out.println("Opening position");
+        System.out.println("Opening position: SL: " + stopLoss + ", PT: " + takeProfit);
         String screenPath;
         if (!dryRun) {
             // Fill in username and password
@@ -211,6 +211,7 @@ public class InstrumentAutomation {
                 System.out.println("Loading screenshot from file " + screenPath);
             }
             
+            /*
             System.out.println("Searching for dialog close button with pattern "
                             + config.getValue("pattern.trade.closedialog.path"));
             vec = re.matchTemplate(
@@ -231,8 +232,84 @@ public class InstrumentAutomation {
             } else {
                 throw new EToreadorException("Closing button not found");
             }
+            */
+            
+            System.out.println("Searching for open trade button with pattern "
+                            + config.getValue("pattern.trade.opentrade.path"));
+            vec = re.matchTemplate(
+                            screenPath,
+                            config.getValue("pattern.trade.opentrade.path"),
+                            Double.valueOf(config.getValue("pattern.trade.opentrade.threshold")),
+                            config.getValue("test.match.trade.opentrade.result")
+                            );
+            System.out.println("Open trade button search result count: " + vec.size() + ", scale X: "
+                            + re.getTemplateWidth() + ", scale Y: " + re.getTemplateHeight());
+            if (vec.size() > 0) {
+                Point p1 = vec.get(0);
+                Point p2 = vec.get(1);
+                Point middle = new Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                System.out.println("Opening trade");
+                robot.click(middle.x, middle.y);
+                robot.delay(550, 22);
+            } else {
+                throw new EToreadorException("Open trade button not found");
+            }
         } else {
             throw new EToreadorException("Trade dialog not found");
         }
+    }
+
+    public boolean isLongOpen(Recognition re, Configuration config, boolean dryRun) {
+        boolean result = false;
+        String screenPath;
+        if (!dryRun) {
+            System.out.println("Taking screenshot");
+            screenPath = Automation.takeScreenshot(config.getValue("screenshot.path"),
+                            config.getValue("screenshot.type"));
+        } else {
+            screenPath = config.getValue("test.opentrades.path");
+            System.out.println("Loading screenshot from file " + screenPath);
+        }
+        System.out.println("Searching for open buy trades with pattern "
+                        + config.getValue("pattern.trade.oil.buy.path"));
+        Vector<Point> vec = re.matchTemplate(
+                        screenPath,
+                        config.getValue("pattern.trade.oil.buy.path"),
+                        Double.valueOf(config.getValue("pattern.trade.oil.buy.threshold")),
+                        config.getValue("test.match.trade.oil.buy.result")
+                        );
+        System.out.println("Open trade search result count: " + vec.size() + ", scale X: "
+                        + re.getTemplateWidth() + ", scale Y: " + re.getTemplateHeight());
+        if (vec.size() > 0) {
+            result = true;
+        }
+        return result;
+    }
+
+    public boolean isShortOpen(Recognition re, Configuration config, boolean dryRun) {
+        boolean result = false;
+        String screenPath;
+        if (!dryRun) {
+            System.out.println("Taking screenshot");
+            screenPath = Automation.takeScreenshot(config.getValue("screenshot.path"),
+                            config.getValue("screenshot.type"));
+        } else {
+            screenPath = config.getValue("test.opentrades.path");
+            System.out.println("Loading screenshot from file " + screenPath);
+        }
+        System.out.println("Searching for open sell trades with pattern "
+                        + config.getValue("pattern.trade.oil.sell.path"));
+        Vector<Point> vec = re.matchTemplate(
+                        screenPath,
+                        config.getValue("pattern.trade.oil.sell.path"),
+                        Double.valueOf(config.getValue("pattern.trade.oil.sell.threshold")),
+                        config.getValue("test.match.trade.oil.sell.result")
+                        );
+        System.out.println("Open trade search result count: " + vec.size() + ", scale X: "
+                        + re.getTemplateWidth() + ", scale Y: " + re.getTemplateHeight());
+        if (vec.size() > 0) {
+            result = true;
+        }
+        return result;
     }
 }

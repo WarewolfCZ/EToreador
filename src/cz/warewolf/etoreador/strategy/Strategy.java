@@ -27,7 +27,7 @@ public class Strategy {
     private double amount;
     private double stopLoss;
     private double profitTarget;
-    private static int QUEUE_SIZE = 32;
+    private static int QUEUE_SIZE = 21;
     public static double DEFAULT_STOPLOSS = 0.6; // dollars 0.57
     public static double DEFAULT_PROFIT_TARGET = 0.7; // dollars 0.64
 
@@ -69,12 +69,17 @@ public class Strategy {
         this.lastBuyPrice = buyPrice;
         this.balance = balance;
     }
+    
+    private double roundDouble(double value) {
+        return (double) Math.round(value * 100) / 100;
+    }
+
 
     public Order getOrder() {
         Order result = null;
         if (balance > amount && this.sellPrices.size() >= QUEUE_SIZE) {
-            if (avgSell > lastSellPrice && !shortOpened) result = new Order(OrderType.OPEN_SHORT, lastSellPrice, lastSellPrice + stopLoss, lastSellPrice - profitTarget);
-            else if (avgSell < lastSellPrice && !longOpened) result = new Order(OrderType.OPEN_LONG, lastBuyPrice, lastBuyPrice - stopLoss, lastBuyPrice + profitTarget);
+            if (avgSell > lastSellPrice && !shortOpened) result = new Order(OrderType.OPEN_SHORT, roundDouble(lastSellPrice), roundDouble(lastSellPrice + stopLoss), roundDouble(lastSellPrice - profitTarget));
+            else if (avgSell < lastSellPrice && !longOpened) result = new Order(OrderType.OPEN_LONG, roundDouble(lastBuyPrice), roundDouble(lastBuyPrice - stopLoss), roundDouble(lastBuyPrice + profitTarget));
         }
         return result;
     }

@@ -390,11 +390,11 @@ public class Automation {
         if (vec.size() > 0) {
             System.out.println("Equity found");
             equityPosition = vec.get(0);
-            equityPosition.x += (85 * ratioX);
+            equityPosition.x += (165 * ratioX);
             equityPosition.y -= (15 * ratioY);
 
-            Point p3 = new Point((int) (equityPosition.x - (20 * ratioX)), (int) (equityPosition.y - (5 * ratioY)));
-            Point p4 = new Point((int) (equityPosition.x + (85 * ratioX)), (int) (equityPosition.y + (20 * ratioY)));
+            Point p3 = new Point((int) (equityPosition.x - (28 * ratioX)), (int) (equityPosition.y - (5 * ratioY)));
+            Point p4 = new Point((int) (equityPosition.x + (165 * ratioX)), (int) (equityPosition.y + (20 * ratioY)));
             Image i = new Image(config.getValue("test.match.equity.result"));
             i.convertToRGB();
             i.markPoint(equityPosition);
