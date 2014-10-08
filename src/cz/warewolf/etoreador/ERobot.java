@@ -88,9 +88,13 @@ public class ERobot {
     
     public void click(int x, int y) {
             robot.mouseMove(x, y);
-            robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
-            robot.delay(75 + getRandomInt(0, 8));
-            robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+            this.click();
+    }
+    
+    public void click() {
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        robot.delay(75 + getRandomInt(0, 8));
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
     }
     
     public void doubleClick(int x, int y) {

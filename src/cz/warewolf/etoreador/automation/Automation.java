@@ -57,7 +57,6 @@ public class Automation {
 
     public void login(boolean dryRun) throws EToreadorException {
         FirefoxDriver driver = null;
-
         String screenPath = null;
 
         // Switch to trading platform
@@ -485,12 +484,11 @@ public class Automation {
         FileManager fm = new FileManager();
         double scale = 4.2;
         int threshold = 149;
-        System.out.println("Taking screenshot");
         String screenPath;
         String ocrOrig;
         Point p3 = null, p4 = null;
         if (!dryRun) {
-            System.out.println("Taking screenshot");
+            System.out.println("Taking screenshot!!");
             screenPath = Automation.takeScreenshot(config.getValue("screenshot.path"),
                             config.getValue("screenshot.type"));
         } else {
@@ -541,13 +539,16 @@ public class Automation {
                 ocrOrig = ocrResult;
                 ocrResult = ocrResult.trim().replace(", ", ".").replace(",", ".").replace("'", "").replace("-", "")
                                 .replace("_", "").trim();
-                ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct").replace(" :", ":").replace(": ", ":");
+                ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct").replace(" :", ":")
+                                .replace(": ", ":");
                 ocrResult = ocrResult.replace("0Ct", "Oct").replace("0CT", "Oct").replace("0cT", "Oct");
                 System.out.println("OCR result modified: '" + ocrResult + "'");
                 String[] tmp = ocrResult.split(" ", 3);
                 open = Double.valueOf(tmp[0].replace(" ", ""));
                 high = Double.valueOf(tmp[1].replace(" ", ""));
-                tmp[2] = tmp[2].substring(0, tmp[2].length() -5) + " " + tmp[2].substring(tmp[2].length() -5, tmp[2].length() -3) + ":" + tmp[2].substring(tmp[2].length() -2);
+                tmp[2] = tmp[2].substring(0, tmp[2].length() - 5) + " "
+                                + tmp[2].substring(tmp[2].length() - 5, tmp[2].length() - 3) + ":"
+                                + tmp[2].substring(tmp[2].length() - 2);
                 tmp[2] = tmp[2].replace("  ", " ").replace(" :", ":").replace(": ", ":");
                 System.out.println("date string modified: '" + tmp[2] + "'");
                 try {
@@ -607,10 +608,13 @@ public class Automation {
             if (previousTime != null && previousTime.equals(time)) {
                 System.out.println("Time is the same, exiting data capturing");
                 loop = false;
+            } else {
+                System.out.println("Pressing key Right");
+//                robot.click();
+                robot.keyPress(KeyEvent.VK_RIGHT);
+//                robot.delay(100, 0);
+                previousTime = time;
             }
-            robot.keyPress(KeyEvent.VK_RIGHT);
-            // robot.delay(100, 0);
-            previousTime = time;
 
         }
     }
