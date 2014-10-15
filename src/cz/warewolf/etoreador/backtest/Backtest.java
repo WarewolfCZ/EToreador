@@ -9,14 +9,17 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 import cz.warewolf.etoreador.backtest.BacktestPosition.PositionType;
 import cz.warewolf.etoreador.config.Configuration;
+import cz.warewolf.etoreador.gui.EWindow;
 import cz.warewolf.etoreador.strategy.Order;
-import cz.warewolf.etoreador.strategy.Strategy;
+import cz.warewolf.etoreador.strategy.StrategyInterface;
+import cz.warewolf.etoreador.strategy.TrendStrategy;
 
 /**
  * @author Denis
@@ -25,7 +28,6 @@ import cz.warewolf.etoreador.strategy.Strategy;
 public class Backtest {
 
     private File dataFile;
-    @SuppressWarnings("unused")
     private Configuration config;
     private List<BacktestPosition> positions;
     private long profitTrades;
@@ -48,7 +50,7 @@ public class Backtest {
         List<Double> result = new ArrayList<Double>();
         LinkedList<String> lines = new LinkedList<String>();
         BufferedReader br = new BufferedReader(new FileReader(this.dataFile));
-        
+
         String line = br.readLine(); // skip header
         while ((line = br.readLine()) != null) {
             lines.add(line);
@@ -72,11 +74,41 @@ public class Backtest {
         return result;
     }
 
-    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss, double profitTarget) throws IOException {
-        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null);
+    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
+                    double profitTarget) throws IOException {
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, 0, 0);
     }
 
-    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss, double profitTarget, List<String> lines)
+    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
+                    double profitTarget, Date backtestDate) throws IOException {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(backtestDate);
+        cal.set(Calendar.HOUR_OF_DAY, 5);
+        cal.set(Calendar.MINUTE, 30);
+        cal.set(Calendar.SECOND, 0);
+        System.out.println("Start time: " +  cal.getTime());
+        long startTimestamp = cal.getTimeInMillis();
+        cal.set(Calendar.HOUR_OF_DAY, 22);
+        cal.set(Calendar.MINUTE, 15);
+        System.out.println("End time: " +  cal.getTime());
+        long endTimestamp = cal.getTimeInMillis();
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, startTimestamp,
+                        endTimestamp);
+    }
+
+    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
+                    double profitTarget, long startTimestamp, long endTimestamp) throws IOException {
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, startTimestamp,
+                        endTimestamp);
+    }
+
+    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
+                    double profitTarget, List<String> lines) throws IOException {
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, lines, 0, 0);
+    }
+
+    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
+                    double profitTarget, List<String> lines, long startTimestamp, long endTimestamp)
                     throws IOException {
 
         BufferedReader br = new BufferedReader(new FileReader(this.dataFile));
@@ -84,10 +116,12 @@ public class Backtest {
         double initialBalance = balance;
         double minimumBalance = balance;
         double maximumBalance = balance;
+        double dailyStopLoss = Double.valueOf(config.getValue("stoploss.daily"));
+        double dailyProfitTarget = Double.valueOf(config.getValue("profit.target.daily"));
         long lineNumber = 1;
         long timestamp = 0;
         String line;
-        Strategy st = new Strategy("OIL", amountUnit, stopLoss, profitTarget);
+        StrategyInterface st = new TrendStrategy("OIL", amountUnit, stopLoss, profitTarget);
         Calendar cal = Calendar.getInstance();
         BacktestPosition bp = null;
         if (lines == null) {
@@ -98,17 +132,18 @@ public class Backtest {
                 lines.add(line);
             }
         }
-        
+
         Iterator<String> linesIterator = lines.iterator();
         while (linesIterator.hasNext()) {
             line = linesIterator.next();
             lineNumber++;
             if (line.isEmpty())
                 continue;
-            else if (balance < amountUnit) {
-                if (backtestOutput) System.out.println("Lost all money, exiting...");
-                break;
-            }
+            // else if (balance < amountUnit) {
+            // if (backtestOutput)
+            // System.out.println("Lost all money, exiting...");
+            // break;
+            // }
             String[] items = line.split(";");
             open = Double.valueOf(items[0]);
             close = Double.valueOf(items[1]);
@@ -118,31 +153,47 @@ public class Backtest {
             buyPrice = open + 0.1;
             cal.setTimeInMillis(Long.valueOf(items[4]));
             timestamp = Long.valueOf(items[4]);
+            if (startTimestamp > 0 && timestamp < startTimestamp) continue;
+            if (endTimestamp > 0 && timestamp > endTimestamp) break;
 
             this.updatePositions(open, open + 0.1, timestamp, dollarTickSize, st);
             this.updatePositions(low, low + 0.1, timestamp, dollarTickSize, st);
             this.updatePositions(high, high + 0.1, timestamp, dollarTickSize, st);
             this.updatePositions(close, close + 0.1, timestamp, dollarTickSize, st);
 
-            profit = this.getProfit(dollarTickSize);
+            balance = this.getProfit(balance, dollarTickSize, amountUnit);
 
-            balance += profit;
+            if (initialBalance - balance >= dailyStopLoss) {
+                System.out.println("Daily stoploss reached: balance: " + balance);
+                break;
+            } else if (roundDouble(balance - initialBalance) >= dailyProfitTarget) {
+                EWindow.setText("Daily profit target reached: " + (balance - initialBalance));
+                System.out.println("Daily profit target reached: " + (balance - initialBalance));
+                break;
+            }
+
             if (balance < minimumBalance) minimumBalance = balance;
             if (balance > maximumBalance) maximumBalance = balance;
             st.update(sellPrice, buyPrice, balance, equity, timestamp);
             Order o = st.getOrder();
-            if (o != null) {
-                /*FileManager fm = new FileManager();
-                  if (backtestOutput) fm.appendToTxtFile(config.getValue("backtest.log"), o.type + ";" + o.price + ";" + o.stoploss + ";"
-                                + o.profitTarget
-                                + timestamp + "\n");*/
+            if (o != null && balance >= amountUnit) {
+                /*
+                 * FileManager fm = new FileManager();
+                 * if (backtestOutput)
+                 * fm.appendToTxtFile(config.getValue("backtest.log"), o.type +
+                 * ";" + o.price + ";" + o.stoploss + ";"
+                 * + o.profitTarget
+                 * + timestamp + "\n");
+                 */
                 switch (o.type) {
                 case OPEN_LONG:
                     bp = new BacktestPosition(PositionType.LONG, o.price, o.stoploss, o.profitTarget, timestamp);
                     if (backtestOutput) System.out.println("Line " + lineNumber + ": Opening LONG position at price "
                                     + roundDouble(o.price) + ", SL: " + roundDouble(o.stoploss) + ", PT: "
                                     + roundDouble(o.profitTarget) + ", Time: " + cal.getTime());
+                    // balance -= amountUnit;
                     st.markLongOpened();
+                    balance -= amountUnit;
                     this.positions.add(bp);
                     break;
                 case OPEN_SHORT:
@@ -150,7 +201,9 @@ public class Backtest {
                     if (backtestOutput) System.out.println("Line " + lineNumber + ": Opening SHORT position at price "
                                     + roundDouble(o.price) + ", SL: " + roundDouble(o.stoploss) + ", PT: "
                                     + roundDouble(o.profitTarget) + ", Time: " + cal.getTime());
+                    // balance -= amountUnit;
                     st.markShortOpened();
+                    balance -= amountUnit;
                     this.positions.add(bp);
                     break;
                 default:
@@ -159,13 +212,15 @@ public class Backtest {
                 }
             }
         }
+        balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
         balance = roundDouble(balance);
         profit = roundDouble((balance - initialBalance));
         minimumBalance = roundDouble(minimumBalance);
         br.close();
         if (backtestOutput) System.out.println("Initial balance: " + initialBalance);
         if (backtestOutput) System.out.println("Final balance: " + balance);
-        if (backtestOutput) System.out.println("Profit: " + profit + " (" + roundDouble((profit / initialBalance) * 100) + "%)");
+        if (backtestOutput)
+            System.out.println("Profit: " + profit + " (" + roundDouble((profit / initialBalance) * 100) + "%)");
         if (backtestOutput) System.out.println("Maximum balance: " + roundDouble(maximumBalance));
         if (backtestOutput) System.out.println("Minimum balance: " + roundDouble(minimumBalance));
         if (backtestOutput) System.out.println("Profit trades: " + this.profitTrades);
@@ -181,7 +236,8 @@ public class Backtest {
         return (double) Math.round(value * 100) / 100;
     }
 
-    private void updatePositions(double sellPrice, double buyPrice, long timestamp, double tickSize, Strategy st) {
+    private void updatePositions(double sellPrice, double buyPrice, long timestamp, double tickSize,
+                    StrategyInterface st) {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timestamp);
         for (BacktestPosition bp : this.positions) {
@@ -193,11 +249,13 @@ public class Backtest {
                     if (bp.profitTarget <= sellPrice) {
                         bp.closePrice = bp.profitTarget;
                         bp.closeTimestamp = timestamp;
-                        if (backtestOutput) System.out.println("Closing LONG position " + roundDouble(bp.openPrice) + " at price: "
-                                        + roundDouble(sellPrice)
-                                        + " on profit target (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
-                                        + roundDouble((bp.closePrice - bp.openPrice) / tickSize) + "$)" + ", Time: "
-                                        + cal.getTime());
+                        if (backtestOutput)
+                            System.out.println("Closing LONG position " + roundDouble(bp.openPrice) + " at price: "
+                                            + roundDouble(sellPrice)
+                                            + " on profit target (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
+                                            + roundDouble((bp.closePrice - bp.openPrice) / tickSize) + "$)"
+                                            + ", Time: "
+                                            + cal.getTime());
                         this.profitTrades++;
                         this.totalTrades++;
                         st.markLongClosed();
@@ -207,11 +265,13 @@ public class Backtest {
                         this.lossTrades++;
                         this.totalTrades++;
                         st.markLongClosed();
-                        if (backtestOutput) System.out.println("Closing LONG position " + roundDouble(bp.openPrice) + " at price: "
-                                        + roundDouble(sellPrice)
-                                        + " on STOPLOSS (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
-                                        + roundDouble((bp.closePrice - bp.openPrice) / tickSize) + "$)" + ", Time: "
-                                        + cal.getTime());
+                        if (backtestOutput)
+                            System.out.println("Closing LONG position " + roundDouble(bp.openPrice) + " at price: "
+                                            + roundDouble(sellPrice)
+                                            + " on STOPLOSS (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
+                                            + roundDouble((bp.closePrice - bp.openPrice) / tickSize) + "$)"
+                                            + ", Time: "
+                                            + cal.getTime());
                     }
                 }
                 break;
@@ -223,21 +283,25 @@ public class Backtest {
                         this.profitTrades++;
                         this.totalTrades++;
                         st.markShortClosed();
-                        if (backtestOutput) System.out.println("Closing SHORT position " + roundDouble(bp.openPrice) + " at price: "
-                                        + roundDouble(buyPrice)
-                                        + " on profit target (" + roundDouble(bp.openPrice - bp.closePrice) + ", "
-                                        + roundDouble(-1 * (bp.closePrice - bp.openPrice) / tickSize) + "$)" + ", Time: "
-                                        + cal.getTime());
+                        if (backtestOutput)
+                            System.out.println("Closing SHORT position " + roundDouble(bp.openPrice) + " at price: "
+                                            + roundDouble(buyPrice)
+                                            + " on profit target (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
+                                            + roundDouble(-1 * (bp.closePrice - bp.openPrice) / tickSize) + "$)"
+                                            + ", Time: "
+                                            + cal.getTime());
                     } else if (bp.stoploss <= buyPrice) {
                         bp.closePrice = bp.stoploss;
                         this.lossTrades++;
                         this.totalTrades++;
                         st.markShortClosed();
-                        if (backtestOutput) System.out.println("Closing SHORT position " + roundDouble(bp.openPrice) + " at price: "
-                                        + roundDouble(buyPrice)
-                                        + " on STOPLOSS (" + roundDouble(bp.openPrice - bp.closePrice) + ", "
-                                        + roundDouble((bp.closePrice - bp.openPrice) / tickSize) + "$)" + ", Time: "
-                                        + cal.getTime());
+                        if (backtestOutput)
+                            System.out.println("Closing SHORT position " + roundDouble(bp.openPrice) + " at price: "
+                                            + roundDouble(buyPrice)
+                                            + " on STOPLOSS (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
+                                            + roundDouble(-1 * (bp.closePrice - bp.openPrice) / tickSize) + "$)"
+                                            + ", Time: "
+                                            + cal.getTime());
                     }
                 }
                 break;
@@ -249,13 +313,70 @@ public class Backtest {
         }
     }
 
+    private double closePositions(double sellPrice, double buyPrice, double amountUnit, long timestamp,
+                    double tickSize,
+                    StrategyInterface st) {
+        double result = 0.0;
+        double balanceDelta = 0.0;
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(timestamp);
+        for (BacktestPosition bp : this.positions) {
+            bp.isOpen = false;
+            bp.closeTimestamp = timestamp;
+            switch (bp.type) {
+            case LONG:
+                bp.closePrice = sellPrice;
+                if (bp.closePrice > bp.openPrice)
+                    this.profitTrades++;
+                else
+                    this.lossTrades++;
+                this.totalTrades++;
+                st.markLongClosed();
+                result += bp.closePrice - bp.openPrice;
+                balanceDelta += amountUnit;
+                if (backtestOutput)
+                    System.out.println("Closing LONG position " + roundDouble(bp.openPrice) + " at price: "
+                                    + roundDouble(sellPrice)
+                                    + " on CLOSING EXCHANGE (" + roundDouble(bp.closePrice - bp.openPrice) + ", "
+                                    + roundDouble((bp.closePrice - bp.openPrice) / tickSize) + "$)" + ", Time: "
+                                    + cal.getTime());
+                break;
+            case SHORT:
+                bp.closePrice = buyPrice;
+                if (bp.closePrice < bp.openPrice)
+                    this.profitTrades++;
+                else
+                    this.lossTrades++;
+                this.totalTrades++;
+                result += bp.openPrice - bp.closePrice;
+                balanceDelta += amountUnit;
+                st.markShortClosed();
+                if (backtestOutput)
+                    System.out.println("Closing SHORT position " + roundDouble(bp.openPrice) + " at price: "
+                                    + roundDouble(buyPrice)
+                                    + " on CLOSING EXCHANGE (" + roundDouble(bp.openPrice - bp.closePrice) + ", "
+                                    + roundDouble(-1 * (bp.closePrice - bp.openPrice) / tickSize) + "$)" + ", Time: "
+                                    + cal.getTime());
+                break;
+            default:
+                break;
+
+            }
+        }
+        result = result / tickSize;
+        result += balanceDelta;
+        this.positions.clear();
+        return result;
+    }
+
     /**
      * 
      * @param tickSize
      *            tick size in dollars
+     * @param amountUnit
      * @return
      */
-    private double getProfit(double tickSize) {
+    private double getProfit(double balance, double tickSize, double amountUnit) {
         double result = 0.0;
         List<BacktestPosition> toRemove = new ArrayList<BacktestPosition>();
         for (BacktestPosition bp : this.positions) {
@@ -264,9 +385,11 @@ public class Backtest {
                 switch (bp.type) {
                 case LONG:
                     result += bp.closePrice - bp.openPrice;
+                    balance += amountUnit;
                     break;
                 case SHORT:
                     result += bp.openPrice - bp.closePrice;
+                    balance += amountUnit;
                     break;
                 default:
                     break;
@@ -274,6 +397,7 @@ public class Backtest {
             }
         }
         result = result / tickSize;
+        result += balance;
         for (BacktestPosition bp : toRemove) {
             this.positions.remove(bp);
         }

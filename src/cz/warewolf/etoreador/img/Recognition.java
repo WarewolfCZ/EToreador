@@ -60,11 +60,21 @@ public class Recognition {
     
     public Vector<java.awt.Point> matchTemplate(String screenshotFilename, String templateName, double threshold,
                     String resultPath) {
-        return this.matchTemplate(screenshotFilename, templateName, threshold, resultPath, 0.0, 0.0);
+        return this.matchTemplate(screenshotFilename, templateName, threshold, resultPath, 0.0, 0.0, MAX_RESIZE_COUNT);
+    }
+    
+    public Vector<java.awt.Point> matchTemplate(String screenshotFilename, String templateName, double threshold,
+                    String resultPath, int maxResizeCount) {
+        return this.matchTemplate(screenshotFilename, templateName, threshold, resultPath, 0.0, 0.0, maxResizeCount);
     }
     
     public Vector<java.awt.Point> matchTemplate(String screenshotFilename, String templateName, double threshold,
                     String resultPath, double templSizeX, double templSizeY) {
+        return this.matchTemplate(screenshotFilename, templateName, threshold, resultPath, 0.0, 0.0, MAX_RESIZE_COUNT);
+    }
+    
+    public Vector<java.awt.Point> matchTemplate(String screenshotFilename, String templateName, double threshold,
+                    String resultPath, double templSizeX, double templSizeY, int maxResizeCount) {
         System.out.println("Recognition.matchTemplate(): using template " + templateName + ", threshold: " + threshold);
         Mat imageMat = Highgui.imread(screenshotFilename, Highgui.CV_LOAD_IMAGE_GRAYSCALE);
         if (imageMat.height() < 700 || imageMat.width() < 1300) {
@@ -94,7 +104,7 @@ public class Recognition {
         Point maxLoc;
         Point matchLoc;
 
-        for (int i = 0; i < MAX_RESIZE_COUNT; i++) {
+        for (int i = 0; i < maxResizeCount; i++) {
 
             // Do the Matching and Normalize
             Imgproc.matchTemplate(imageMat, templMat, resultMat, match_method);

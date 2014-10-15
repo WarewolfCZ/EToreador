@@ -357,7 +357,10 @@ public class Automation {
                 System.out.println("Starting OCR on image " + config.getValue("instrument.ocr.image"));
                 String balanceStr = re.ocr(i2.getImage());
                 System.out.println("OCR result: " + balanceStr);
-                balanceStr = balanceStr.replace("$", "").replace(",", "");
+                balanceStr = balanceStr.replace("$", "").replace(",", "").replace("O", "0");
+                if (balanceStr.length() <= 7) {
+                    balanceStr = balanceStr.replace(".", "");
+                }
                 result = Double.valueOf(balanceStr);
             } else {
                 throw new EToreadorException("Cannot save ocr temp image: " + config.getValue("instrument.ocr.image"));
@@ -394,7 +397,7 @@ public class Automation {
             equityPosition.y -= (15 * ratioY);
 
             Point p3 = new Point((int) (equityPosition.x - (28 * ratioX)), (int) (equityPosition.y - (5 * ratioY)));
-            Point p4 = new Point((int) (equityPosition.x + (165 * ratioX)), (int) (equityPosition.y + (20 * ratioY)));
+            Point p4 = new Point((int) (equityPosition.x + (160 * ratioX)), (int) (equityPosition.y + (20 * ratioY)));
             Image i = new Image(config.getValue("test.match.equity.result"));
             i.convertToRGB();
             i.markPoint(equityPosition);
@@ -410,7 +413,7 @@ public class Automation {
                 System.out.println("Starting OCR on image " + config.getValue("instrument.ocr.image"));
                 String equityStr = re.ocr(i2.getImage());
                 System.out.println("OCR result: " + equityStr);
-                equityStr = equityStr.replace("$", "").replace(",", "");
+                equityStr = equityStr.replace("$", "").replace(",", "").replace("O", "0");
 
                 result = Double.valueOf(equityStr);
             } else {
@@ -464,7 +467,7 @@ public class Automation {
                 System.out.println("Starting OCR on image " + config.getValue("instrument.ocr.image"));
                 String profitStr = re.ocr(i2.getImage());
                 System.out.println("OCR result: " + profitStr);
-                profitStr = profitStr.replace("$", "").replace(",", "");
+                profitStr = profitStr.replace("$", "").replace(",", "").replace("O", "0");
 
                 result = Double.valueOf(profitStr);
             } else {
@@ -537,10 +540,10 @@ public class Automation {
                 String ocrResult = re.ocr(i.getImage());
                 System.out.println("OCR result: '" + ocrResult + "'");
                 ocrOrig = ocrResult;
-                ocrResult = ocrResult.trim().replace(", ", ".").replace(",", ".").replace("'", "").replace("-", "")
+                ocrResult = ocrResult.trim().replace(", ", ".").replace(",", ".").replace("'", "").replace("-", "").replace("“", "")
                                 .replace("_", "").trim();
                 ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct").replace(" :", ":")
-                                .replace(": ", ":");
+                                .replace(": ", ":").replace("ö", "6");
                 ocrResult = ocrResult.replace("0Ct", "Oct").replace("0CT", "Oct").replace("0cT", "Oct");
                 System.out.println("OCR result modified: '" + ocrResult + "'");
                 String[] tmp = ocrResult.split(" ", 3);
@@ -549,7 +552,7 @@ public class Automation {
                 tmp[2] = tmp[2].substring(0, tmp[2].length() - 5) + " "
                                 + tmp[2].substring(tmp[2].length() - 5, tmp[2].length() - 3) + ":"
                                 + tmp[2].substring(tmp[2].length() - 2);
-                tmp[2] = tmp[2].replace("  ", " ").replace(" :", ":").replace(": ", ":");
+                tmp[2] = tmp[2].replace("  ", " ").replace(" :", ":").replace(": ", ":").replace("I", "1");
                 System.out.println("date string modified: '" + tmp[2] + "'");
                 try {
                     SimpleDateFormat parserSDF = new SimpleDateFormat("yyyy MMM dd HH:mm", Locale.US);
@@ -592,7 +595,7 @@ public class Automation {
                 ocrOrig += " " + ocrResult;
                 ocrResult = ocrResult.trim().replace(", ", ".").replace(",", ".").replace("'", "").replace("-", "")
                                 .replace("_", "").trim();
-                ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct");
+                ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct").replace("ö", "6");
                 System.out.println("OCR result modified: '" + ocrResult + "'");
                 String[] tmp = ocrResult.split(" ", 2);
                 close = Double.valueOf(tmp[0].replace(" ", ""));

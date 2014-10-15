@@ -276,11 +276,13 @@ public class InstrumentAutomation {
                         screenPath,
                         config.getValue("pattern.trade.oil.buy.path"),
                         Double.valueOf(config.getValue("pattern.trade.oil.buy.threshold")),
-                        config.getValue("test.match.trade.oil.buy.result")
+                        config.getValue("test.match.trade.oil.buy.result"),
+                        3
                         );
         System.out.println("Open trade search result count: " + vec.size() + ", scale X: "
                         + re.getTemplateWidth() + ", scale Y: " + re.getTemplateHeight());
         if (vec.size() > 0) {
+            System.out.println("Open trade found");
             result = true;
         }
         return result;
@@ -303,11 +305,13 @@ public class InstrumentAutomation {
                         screenPath,
                         config.getValue("pattern.trade.oil.sell.path"),
                         Double.valueOf(config.getValue("pattern.trade.oil.sell.threshold")),
-                        config.getValue("test.match.trade.oil.sell.result")
+                        config.getValue("test.match.trade.oil.sell.result"),
+                        3
                         );
         System.out.println("Open trade search result count: " + vec.size() + ", scale X: "
                         + re.getTemplateWidth() + ", scale Y: " + re.getTemplateHeight());
         if (vec.size() > 0) {
+            System.out.println("Open trade found");
             result = true;
         }
         return result;

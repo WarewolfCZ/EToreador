@@ -54,6 +54,10 @@ public class Configuration {
         return this.prop.getProperty(key);
     }
 
+    public String getValue(String key, String defaultValue) {
+        return this.prop.getProperty(key, defaultValue);
+    }
+    
     /**
      *  Get all configuration keys
      * @return List<String> list of all keys
