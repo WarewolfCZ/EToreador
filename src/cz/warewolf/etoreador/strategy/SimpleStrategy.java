@@ -49,6 +49,16 @@ public class SimpleStrategy implements StrategyInterface {
         this.sellPrices = new ArrayDeque<Double>(QUEUE_SIZE);
     }
 
+    public void reset() {
+        this.avgSell = 0.0;
+        this.sellPrices = new ArrayDeque<Double>(QUEUE_SIZE);
+        this.balance = 0.0;
+        this.longOpened = false;
+        this.shortOpened = false;
+        this.lastBuyPrice = 0.0;
+        this.lastSellPrice = 0.0;
+    }
+    
     /* (non-Javadoc)
      * @see cz.warewolf.etoreador.strategy.StrategyInterface#update(double, double, double, double, long)
      */

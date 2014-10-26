@@ -40,7 +40,7 @@ public class TrendStrategy implements StrategyInterface {
     private static int RSI_PERIOD = 2;
     private static double RSI_OVERSOLD = 16;
     private static double RSI_OVERBOUGHT = 84;
-//    private static double TREND_STRENGTH = 0.05;
+    // private static double TREND_STRENGTH = 0.05;
     public static double DEFAULT_STOPLOSS = 0.6; // dollars 0.57
     public static double DEFAULT_PROFIT_TARGET = 0.5; // dollars 0.64
 
@@ -66,6 +66,20 @@ public class TrendStrategy implements StrategyInterface {
         this.rsi = new RSI(RSI_PERIOD);
         this.maxRsiValue = 0.0;
         this.minRsiValue = Double.MAX_VALUE;
+    }
+
+    public void reset() {
+        this.sellPrices = new ArrayDeque<Double>(QUEUE_SIZE);
+        this.sma = new ArrayDeque<Double>(QUEUE_SIZE);
+        this.rsi = new RSI(RSI_PERIOD);
+        this.maxRsiValue = 0.0;
+        this.minRsiValue = Double.MAX_VALUE;
+        this.lastRsiValue = 0.0;
+        this.smaBegin = 0.0;
+        this.smaEnd = 0.0;
+        this.balance = 0.0;
+        this.longOpened = false;
+        this.shortOpened = false;
     }
 
     /*
@@ -139,54 +153,60 @@ public class TrendStrategy implements StrategyInterface {
     @Override
     public Order getOrder() {
         Order result = null;
-        int ratio = 0;
+        boolean adjustProfitTarget = true;
         if (balance > amount && this.sellPrices.size() >= QUEUE_SIZE) {
 
             if (this.rsiValue > 0 && this.lastRsiValue > 0) {
                 /************************** LONG ************************/
-                if (this.rsiValue > RSI_OVERSOLD && this.lastRsiValue < RSI_OVERSOLD 
+                if (this.rsiValue > RSI_OVERSOLD && this.lastRsiValue < RSI_OVERSOLD
                                 && !isLongOpened() && !isShortOpened()
-                                && smaBegin < smaEnd
-                                ) {
+                                && smaBegin < smaEnd) {
                     double weight = RSI_OVERSOLD - this.minRsiValue;
-                    //if (weight > 10) {
-                        double tmp = 0;
-                        if (ratio > 0 ) tmp = stopLoss * weight / ratio;
-                        else tmp = stopLoss;
-                        
-                        if (tmp > amount / 10) tmp = amount / 10;
-                        double sl = lastBuyPrice - tmp;
+                    double magicCoeficient = (10 - weight) / 8;
+                    if (magicCoeficient <= 0) magicCoeficient = 0.0;
+                    else if (magicCoeficient > profitTarget) magicCoeficient = profitTarget * 0.9;
+                    // if (weight > 10) {
+                    double tmp = stopLoss;
 
-                        double pt = 0;
-                        if (ratio > 0 ) pt = lastBuyPrice + (profitTarget * weight / ratio);
-                        else pt = lastBuyPrice + profitTarget;
-                        System.out.println("RSI weight: " + weight);
-                        this.minRsiValue = Double.MAX_VALUE;
-                        result = new Order(OrderType.OPEN_LONG, roundDouble(lastBuyPrice),
-                                        roundDouble(sl), roundDouble(pt));
-                    //}
-                /************************** SHORT ************************/
-                } else if (this.rsiValue < RSI_OVERBOUGHT && this.lastRsiValue > RSI_OVERBOUGHT 
+                    if (tmp > amount / 10) tmp = amount / 10;
+                    double sl = lastBuyPrice - tmp;
+
+                    double pt = 0;
+                    if (adjustProfitTarget)
+                        pt = lastBuyPrice + profitTarget - magicCoeficient;
+                    else
+                        pt = lastBuyPrice + profitTarget;
+                    System.out.println("RSI value: " + roundDouble(this.rsiValue) + ", weight: " + roundDouble(weight)
+                                    + ", previous RSI value: " + this.lastRsiValue);
+                    this.minRsiValue = Double.MAX_VALUE;
+                    result = new Order(OrderType.OPEN_LONG, roundDouble(lastBuyPrice),
+                                    roundDouble(sl), roundDouble(pt));
+                    // }
+                    /************************** SHORT ************************/
+                } else if (this.rsiValue < RSI_OVERBOUGHT && this.lastRsiValue > RSI_OVERBOUGHT
                                 && this.rsiValue > RSI_OVERSOLD
                                 && !isLongOpened() && !isShortOpened()
-                                && smaBegin > smaEnd
-                                ) {
+                                && smaBegin > smaEnd) {
                     double weight = this.maxRsiValue - RSI_OVERBOUGHT;
-                    //if (weight > 10) {
-                        double tmp = 0;
-                        if (ratio > 0 ) tmp = stopLoss * (weight / (ratio - 2));
-                        else tmp = stopLoss;
-                        
-                        if (tmp > amount / 10) tmp = amount / 10;
-                        double sl = lastSellPrice + tmp;
-                        double pt = 0;
-                        if (ratio > 0 ) pt = lastSellPrice - (profitTarget * weight / ratio);
-                        else pt = lastSellPrice - profitTarget;
-                        System.out.println("RSI weight: " + weight);
-                        this.maxRsiValue = 0.0;
-                        result = new Order(OrderType.OPEN_SHORT, roundDouble(lastSellPrice), roundDouble(sl),
-                                        roundDouble(pt));
-                    //}
+                    double magicCoeficient = (10 - weight) / 8;
+                    if (magicCoeficient <= 0) magicCoeficient = 0.0;
+                    else if (magicCoeficient > profitTarget) magicCoeficient = profitTarget * 0.9;
+                    // if (weight > 10) {
+                    double tmp = stopLoss;
+
+                    if (tmp > amount / 10) tmp = amount / 10;
+                    double sl = lastSellPrice + tmp;
+                    double pt = 0;
+                    if (adjustProfitTarget)
+                        pt = lastSellPrice - profitTarget + magicCoeficient;
+                    else
+                        pt = lastSellPrice - profitTarget;
+                    System.out.println("RSI value: " + roundDouble(this.rsiValue) + ", weight: " + roundDouble(weight)
+                                    + ", previous RSI value: " + this.lastRsiValue);
+                    this.maxRsiValue = 0.0;
+                    result = new Order(OrderType.OPEN_SHORT, roundDouble(lastSellPrice), roundDouble(sl),
+                                    roundDouble(pt));
+                    // }
                 }
             }
             /*

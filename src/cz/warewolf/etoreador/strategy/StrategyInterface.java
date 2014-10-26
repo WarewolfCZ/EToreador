@@ -36,4 +36,6 @@ public interface StrategyInterface {
 
     public abstract int getRemainingIdleCycles();
 
+    public abstract void reset();
+
 }

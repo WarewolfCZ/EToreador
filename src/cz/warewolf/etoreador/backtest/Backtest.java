@@ -152,7 +152,7 @@ public class Backtest {
         }
 
         boolean skipped = false;
-        double dailyBalance = 0.0;
+        double dailyInitialBalance = 0.0;
         
         Iterator<String> linesIterator = lines.iterator();
         while (linesIterator.hasNext()) {
@@ -170,8 +170,8 @@ public class Backtest {
             close = Double.valueOf(items[1]);
             high = Double.valueOf(items[2]);
             low = Double.valueOf(items[3]);
-            sellPrice = open;
-            buyPrice = open + 0.1;
+            sellPrice = close;
+            buyPrice = close + 0.1;
             cal.setTimeInMillis(Long.valueOf(items[4]));
             timestamp = Long.valueOf(items[4]);
             int time = (cal.get(Calendar.HOUR_OF_DAY) * 100) + cal.get(Calendar.MINUTE);
@@ -186,17 +186,17 @@ public class Backtest {
                 if (!skipped) {
                     balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
                     balance = roundDouble(balance);
-                    profit = roundDouble((balance - dailyBalance));
+                    profit = roundDouble((balance - dailyInitialBalance));
                     if (backtestOutput) System.out.println("=== End of day balance: " + balance);
                     if (backtestOutput)
-                        System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyBalance) * 100) + "%)");
+                        System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyInitialBalance) * 100) + "%)");
                     skipped = true;
-                    dailyBalance = 0.0;
+                    dailyInitialBalance = 0.0;
                 }
                 continue;
             }
             
-            if (dailyBalance == 0.0) dailyBalance = balance;
+            if (dailyInitialBalance == 0.0) dailyInitialBalance = balance;
             skipped = false;
             this.updatePositions(open, open + 0.1, timestamp, dollarTickSize, st);
             this.updatePositions(low, low + 0.1, timestamp, dollarTickSize, st);
@@ -204,15 +204,17 @@ public class Backtest {
             this.updatePositions(close, close + 0.1, timestamp, dollarTickSize, st);
 
             balance = this.getProfit(balance, dollarTickSize, amountUnit);
-
-            if (dailyBalance - balance >= dailyStopLoss) {
-                System.out.println("---Daily stoploss reached: balance: " + balance + " (" + (balance - dailyBalance) + ")");
+            double margin = this.positions.size() * amountUnit;
+            
+            if (dailyInitialBalance - balance - margin >= dailyStopLoss) {
+                System.out.println("---Daily stoploss reached: balance: " + balance + " (" + (balance - dailyInitialBalance) + "), margin: " + margin);
                 balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
                 balance = roundDouble(balance);
-                profit = roundDouble((balance - dailyBalance));
+                st.reset();
+                profit = roundDouble((balance - dailyInitialBalance));
                 if (backtestOutput) System.out.println("=== End of day balance: " + balance);
                 if (backtestOutput)
-                    System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyBalance) * 100) + "%)");
+                    System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyInitialBalance) * 100) + "%)");
                 Calendar c = Calendar.getInstance();
                 // set startTimestamp to next day
                 c.setTimeInMillis(timestamp);
@@ -220,17 +222,18 @@ public class Backtest {
                 c.set(Calendar.HOUR_OF_DAY, 0);
                 c.set(Calendar.MINUTE, 0);
                 startTimestamp = c.getTimeInMillis();
-                dailyBalance = 0.0;
+                dailyInitialBalance = 0.0;
                 continue;
-            } else if (roundDouble(balance - dailyBalance) >= dailyProfitTarget) {
-                EWindow.setText("Daily profit target reached: " + (balance - dailyBalance));
-                System.out.println("+++Daily profit target reached: " + (balance - dailyBalance));
+            } else if (roundDouble(balance - dailyInitialBalance) >= dailyProfitTarget) {
+                EWindow.setText("Daily profit target reached: " + (balance - dailyInitialBalance));
+                System.out.println("+++Daily profit target reached: " + (balance - dailyInitialBalance));
                 balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
+                st.reset();
                 balance = roundDouble(balance);
-                profit = roundDouble((balance - dailyBalance));
+                profit = roundDouble((balance - dailyInitialBalance));
                 if (backtestOutput) System.out.println("=== End of day balance: " + balance);
                 if (backtestOutput)
-                    System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyBalance) * 100) + "%)");
+                    System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyInitialBalance) * 100) + "%)");
                 Calendar c = Calendar.getInstance();
                 // set startTimestamp to next day
                 c.setTimeInMillis(timestamp);
@@ -238,8 +241,11 @@ public class Backtest {
                 c.set(Calendar.HOUR_OF_DAY, 0);
                 c.set(Calendar.MINUTE, 0);
                 startTimestamp = c.getTimeInMillis();
-                dailyBalance = 0.0;
+                dailyInitialBalance = 0.0;
                 continue;
+            } else if (balance < amountUnit && this.positions.size() == 0) {
+                System.out.println("Balance below minimum margin, can't trade anymore!");
+                break;
             }
 
             if (balance < minimumBalance) minimumBalance = balance;
@@ -263,7 +269,7 @@ public class Backtest {
                                     + roundDouble(o.profitTarget) + ", Time: " + cal.getTime());
                     // balance -= amountUnit;
                     st.markLongOpened();
-                    balance -= amountUnit;
+                    balance -= amountUnit; // subtract margin
                     this.positions.add(bp);
                     break;
                 case OPEN_SHORT:
@@ -273,7 +279,7 @@ public class Backtest {
                                     + roundDouble(o.profitTarget) + ", Time: " + cal.getTime());
                     // balance -= amountUnit;
                     st.markShortOpened();
-                    balance -= amountUnit;
+                    balance -= amountUnit; // subtract margin
                     this.positions.add(bp);
                     break;
                 default:
