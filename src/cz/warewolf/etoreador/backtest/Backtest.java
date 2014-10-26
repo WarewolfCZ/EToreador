@@ -76,39 +76,57 @@ public class Backtest {
 
     public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
                     double profitTarget) throws IOException {
-        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, 0, 0);
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, 0, 0, 0, 0);
+    }
+
+    public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
+                    double profitTarget, Date backtestDate, int startTime, int endTime) throws IOException {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(backtestDate);
+        cal.set(Calendar.SECOND, 0);
+        if (startTime == 0) {
+            cal.set(Calendar.HOUR_OF_DAY, 5);
+            cal.set(Calendar.MINUTE, 30);
+        } else {
+            cal.set(Calendar.HOUR_OF_DAY, startTime / 100);
+            cal.set(Calendar.MINUTE, startTime - ((startTime / 100) * 100));
+        }
+        System.out.println("Start time: " + cal.getTime());
+        long startTimestamp = cal.getTimeInMillis();
+        if (endTime == 0) {
+            cal.set(Calendar.HOUR_OF_DAY, 22);
+            cal.set(Calendar.MINUTE, 15);
+        } else {
+            cal.set(Calendar.HOUR_OF_DAY, endTime / 100);
+            cal.set(Calendar.MINUTE, endTime - ((endTime / 100) * 100));
+        }
+        System.out.println("End time: " + cal.getTime());
+        long endTimestamp = cal.getTimeInMillis();
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, startTimestamp,
+                        endTimestamp, startTime, endTime);
+
     }
 
     public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
                     double profitTarget, Date backtestDate) throws IOException {
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(backtestDate);
-        cal.set(Calendar.HOUR_OF_DAY, 5);
-        cal.set(Calendar.MINUTE, 30);
-        cal.set(Calendar.SECOND, 0);
-        System.out.println("Start time: " +  cal.getTime());
-        long startTimestamp = cal.getTimeInMillis();
-        cal.set(Calendar.HOUR_OF_DAY, 22);
-        cal.set(Calendar.MINUTE, 15);
-        System.out.println("End time: " +  cal.getTime());
-        long endTimestamp = cal.getTimeInMillis();
-        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, startTimestamp,
-                        endTimestamp);
+        return runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, backtestDate, 0, 0);
     }
 
     public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
                     double profitTarget, long startTimestamp, long endTimestamp) throws IOException {
         return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, null, startTimestamp,
-                        endTimestamp);
+                        endTimestamp, 0, 0);
     }
 
+    // called from findOptimalSLAndPT();
     public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
                     double profitTarget, List<String> lines) throws IOException {
-        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, lines, 0, 0);
+        return this.runBacktest(balance, amountUnit, dollarTickSize, stopLoss, profitTarget, lines, 0, 0, 0, 0);
     }
 
     public double runBacktest(double balance, double amountUnit, double dollarTickSize, double stopLoss,
-                    double profitTarget, List<String> lines, long startTimestamp, long endTimestamp)
+                    double profitTarget, List<String> lines, long startTimestamp, long endTimestamp, int startTime,
+                    int endTime)
                     throws IOException {
 
         BufferedReader br = new BufferedReader(new FileReader(this.dataFile));
@@ -133,6 +151,9 @@ public class Backtest {
             }
         }
 
+        boolean skipped = false;
+        double dailyBalance = 0.0;
+        
         Iterator<String> linesIterator = lines.iterator();
         while (linesIterator.hasNext()) {
             line = linesIterator.next();
@@ -153,9 +174,30 @@ public class Backtest {
             buyPrice = open + 0.1;
             cal.setTimeInMillis(Long.valueOf(items[4]));
             timestamp = Long.valueOf(items[4]);
+            int time = (cal.get(Calendar.HOUR_OF_DAY) * 100) + cal.get(Calendar.MINUTE);
             if (startTimestamp > 0 && timestamp < startTimestamp) continue;
             if (endTimestamp > 0 && timestamp > endTimestamp) break;
 
+            if (startTime > 0 && time < startTime) {
+//                System.out.println("Skipping time " + time + " < " + startTime);
+                continue;
+            } else if (endTime > 0 && endTime < time) {
+//                System.out.println("Skipping time " + time + " > " + endTime);
+                if (!skipped) {
+                    balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
+                    balance = roundDouble(balance);
+                    profit = roundDouble((balance - dailyBalance));
+                    if (backtestOutput) System.out.println("=== End of day balance: " + balance);
+                    if (backtestOutput)
+                        System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyBalance) * 100) + "%)");
+                    skipped = true;
+                    dailyBalance = 0.0;
+                }
+                continue;
+            }
+            
+            if (dailyBalance == 0.0) dailyBalance = balance;
+            skipped = false;
             this.updatePositions(open, open + 0.1, timestamp, dollarTickSize, st);
             this.updatePositions(low, low + 0.1, timestamp, dollarTickSize, st);
             this.updatePositions(high, high + 0.1, timestamp, dollarTickSize, st);
@@ -163,13 +205,41 @@ public class Backtest {
 
             balance = this.getProfit(balance, dollarTickSize, amountUnit);
 
-            if (initialBalance - balance >= dailyStopLoss) {
-                System.out.println("Daily stoploss reached: balance: " + balance);
-                break;
-            } else if (roundDouble(balance - initialBalance) >= dailyProfitTarget) {
-                EWindow.setText("Daily profit target reached: " + (balance - initialBalance));
-                System.out.println("Daily profit target reached: " + (balance - initialBalance));
-                break;
+            if (dailyBalance - balance >= dailyStopLoss) {
+                System.out.println("---Daily stoploss reached: balance: " + balance + " (" + (balance - dailyBalance) + ")");
+                balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
+                balance = roundDouble(balance);
+                profit = roundDouble((balance - dailyBalance));
+                if (backtestOutput) System.out.println("=== End of day balance: " + balance);
+                if (backtestOutput)
+                    System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyBalance) * 100) + "%)");
+                Calendar c = Calendar.getInstance();
+                // set startTimestamp to next day
+                c.setTimeInMillis(timestamp);
+                c.add(Calendar.DAY_OF_MONTH, 1);
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                c.set(Calendar.MINUTE, 0);
+                startTimestamp = c.getTimeInMillis();
+                dailyBalance = 0.0;
+                continue;
+            } else if (roundDouble(balance - dailyBalance) >= dailyProfitTarget) {
+                EWindow.setText("Daily profit target reached: " + (balance - dailyBalance));
+                System.out.println("+++Daily profit target reached: " + (balance - dailyBalance));
+                balance += this.closePositions(close, close + 0.1, amountUnit, timestamp, dollarTickSize, st);
+                balance = roundDouble(balance);
+                profit = roundDouble((balance - dailyBalance));
+                if (backtestOutput) System.out.println("=== End of day balance: " + balance);
+                if (backtestOutput)
+                    System.out.println("=== Daily profit: " + profit + " (" + roundDouble((profit / dailyBalance) * 100) + "%)");
+                Calendar c = Calendar.getInstance();
+                // set startTimestamp to next day
+                c.setTimeInMillis(timestamp);
+                c.add(Calendar.DAY_OF_MONTH, 1);
+                c.set(Calendar.HOUR_OF_DAY, 0);
+                c.set(Calendar.MINUTE, 0);
+                startTimestamp = c.getTimeInMillis();
+                dailyBalance = 0.0;
+                continue;
             }
 
             if (balance < minimumBalance) minimumBalance = balance;

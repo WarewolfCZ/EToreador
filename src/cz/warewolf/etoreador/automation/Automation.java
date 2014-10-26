@@ -570,7 +570,12 @@ public class Automation {
                                 SimpleDateFormat parserSDF = new SimpleDateFormat("yyyy MMMddHH:mm", Locale.US);
                                 time = parserSDF.parse("2014 " + tmp[2]);
                             } catch (ParseException e4) {
-                                throw e4;
+                                try {
+                                    SimpleDateFormat parserSDF = new SimpleDateFormat("yyyy MMMdd H H:mm", Locale.US);
+                                    time = parserSDF.parse("2014 " + tmp[2]);
+                                } catch (ParseException e5) {
+                                    throw e5;
+                                }
                             }
                         }
                     }

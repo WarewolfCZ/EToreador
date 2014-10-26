@@ -90,6 +90,8 @@ public class Main {
                 String startTimestampStr = config.getValue("backtest.start", "0");
                 String endTimestampStr = config.getValue("backtest.end", "0");
                 String backtestDateStr = config.getValue("backtest.date");
+                String backtestTimeEndStr = config.getValue("backtest.time.end", "0");
+                String backtestTimeStartStr = config.getValue("backtest.time.start", "0");
                 Date backtestDate = null;
                 if (!backtestDateStr.isEmpty()) {
                     SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy");
@@ -99,12 +101,30 @@ public class Main {
                 if (endTimestampStr.isEmpty()) endTimestampStr = "0";
                 long startTimestamp = Long.valueOf(startTimestampStr);
                 long endTimestamp = Long.valueOf(endTimestampStr);
+                
+                if (backtestTimeStartStr.isEmpty()) backtestTimeStartStr = "0";
+                if (backtestTimeEndStr.isEmpty()) backtestTimeEndStr = "0";
+                int backtestTimeStart = Integer.valueOf(backtestTimeStartStr);
+                int backtestTimeEnd = Integer.valueOf(backtestTimeEndStr);
+                
                 if (backtestDate != null) {
-                    bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, backtestDate);
+                    if (backtestTimeStart > 0 && backtestTimeEnd > 0) {
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, backtestDate, backtestTimeStart, backtestTimeEnd);
+                    } else {
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, backtestDate);
+                    }
                 } else if (startTimestamp > 0 || endTimestamp > 0) {
-                    bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, startTimestamp, endTimestamp);
+                    if (backtestTimeStart > 0 && backtestTimeEnd > 0) {
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, null, startTimestamp, endTimestamp, backtestTimeStart, backtestTimeEnd);
+                    } else {
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, startTimestamp, endTimestamp);
+                    }
                 } else {
-                    bt.runBacktest(68, 10, 0.1, stoploss, profitTarget);
+                    if (backtestTimeStart > 0 && backtestTimeEnd > 0) {
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, null, 0, 0, backtestTimeStart, backtestTimeEnd);
+                    } else {
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget);
+                    }
                 }
                 EWindow.hide();
             } else {
