@@ -163,10 +163,15 @@ public class TrendStrategy implements StrategyInterface {
                                 && smaBegin < smaEnd) {
                     double weight = RSI_OVERSOLD - this.minRsiValue;
                     double magicCoeficient = (10 - weight) / 8;
-                    if (magicCoeficient <= 0) magicCoeficient = 0.0;
+                    if (magicCoeficient <= 0)
+                        magicCoeficient = 0.0;
                     else if (magicCoeficient > profitTarget) magicCoeficient = profitTarget * 0.9;
                     // if (weight > 10) {
-                    double tmp = stopLoss;
+                    double tmp = 0.0;
+                    if (adjustProfitTarget)
+                        tmp = stopLoss - (magicCoeficient / 1.3);
+                    else
+                        tmp = stopLoss;
 
                     if (tmp > amount / 10) tmp = amount / 10;
                     double sl = lastBuyPrice - tmp;
@@ -189,10 +194,15 @@ public class TrendStrategy implements StrategyInterface {
                                 && smaBegin > smaEnd) {
                     double weight = this.maxRsiValue - RSI_OVERBOUGHT;
                     double magicCoeficient = (10 - weight) / 8;
-                    if (magicCoeficient <= 0) magicCoeficient = 0.0;
+                    if (magicCoeficient <= 0)
+                        magicCoeficient = 0.0;
                     else if (magicCoeficient > profitTarget) magicCoeficient = profitTarget * 0.9;
                     // if (weight > 10) {
-                    double tmp = stopLoss;
+                    double tmp = 0.0;
+                    if (adjustProfitTarget)
+                        tmp = stopLoss + (magicCoeficient / 1.3);
+                    else
+                        tmp = stopLoss;
 
                     if (tmp > amount / 10) tmp = amount / 10;
                     double sl = lastSellPrice + tmp;
