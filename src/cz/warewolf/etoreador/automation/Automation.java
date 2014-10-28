@@ -87,18 +87,8 @@ public class Automation {
                 // Fill in username and password
                 this.fillInLoginForm(config, robot);
                 this.submitLoginForm(robot);
-                System.out.println("Taking welcome message screenshot");
-                screenPath = takeScreenshot(config.getValue("screenshot.path"), config.getValue("screenshot.type"));
-            } else {
-                screenPath = config.getValue("test.welcomescreen.path");
-                System.out.println("Loading welcome message screenshot from file " + screenPath);
             }
-            // Dismiss possible welcome screen
-            if (this.findWelcomeMessage(screenPath)) {
-                if (!dryRun) {
-                    this.dismissWelcomeMessage(robot);
-                }
-            }
+            this.findAndDismissWelcomeMessage(dryRun);
         } else {
             throw new EToreadorException("Login form fields not found");
         }
@@ -133,6 +123,26 @@ public class Automation {
         robot.delay(250, 20);
         robot.click(welcomeMessageOkButtonPosition.x, welcomeMessageOkButtonPosition.y);
         robot.delay(250, 20);
+    }
+    
+    public boolean findAndDismissWelcomeMessage(boolean dryRun) {
+        boolean result = false;
+        String screenPath;
+        if (!dryRun) {
+            System.out.println("Taking welcome message screenshot");
+            screenPath = takeScreenshot(config.getValue("screenshot.path"), config.getValue("screenshot.type"));
+        } else {
+            screenPath = config.getValue("test.welcomescreen.path");
+            System.out.println("Loading welcome message screenshot from file " + screenPath);
+        }
+        // Dismiss possible welcome screen
+        if (this.findWelcomeMessage(screenPath)) {
+            if (!dryRun) {
+                this.dismissWelcomeMessage(robot);
+            }
+            result = true;
+        }
+        return result;
     }
 
     private boolean findWelcomeMessage(String screenPath) {

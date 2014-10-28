@@ -52,7 +52,7 @@ public class Main {
                     System.out.println("Key: " + key + ", value: " + config.getValue(key));
                 }
             }
-            
+
             dryRun = Boolean.valueOf(config.getValue("dry.run"));
             skipLogin = Boolean.valueOf(config.getValue("skip.login"));
             captureData = Boolean.valueOf(config.getValue("capture"));
@@ -66,12 +66,12 @@ public class Main {
             if (!dryRun && !backtest && skipLogin) {
                 System.out.println("Waiting 5 seconds");
                 for (int i = 0; i < 5; i++) {
-                    String text = "Waiting " + (5-i) + " seconds";
+                    String text = "Waiting " + (5 - i) + " seconds";
                     EWindow.setText(text);
                     robot.delay(1000, 0);
                 }
             }
-            
+
             if (captureData) {
                 EWindow.setText("Capturing data");
                 au.captureHistoricalData(dryRun);
@@ -82,7 +82,8 @@ public class Main {
                     double stopLoss = slpt.get(0);
                     double profitTarget = slpt.get(1);
                     double balance = slpt.get(2);
-                    System.out.println("Optimal Stop loss: " + stopLoss + ", Profit target: " + profitTarget + " Final balance: " + balance);
+                    System.out.println("Optimal Stop loss: " + stopLoss + ", Profit target: " + profitTarget
+                                    + " Final balance: " + balance);
                 }
             } else if (backtest) {
                 EWindow.setText("Backtesting");
@@ -101,27 +102,30 @@ public class Main {
                 if (endTimestampStr.isEmpty()) endTimestampStr = "0";
                 long startTimestamp = Long.valueOf(startTimestampStr);
                 long endTimestamp = Long.valueOf(endTimestampStr);
-                
+
                 if (backtestTimeStartStr.isEmpty()) backtestTimeStartStr = "0";
                 if (backtestTimeEndStr.isEmpty()) backtestTimeEndStr = "0";
                 int backtestTimeStart = Integer.valueOf(backtestTimeStartStr);
                 int backtestTimeEnd = Integer.valueOf(backtestTimeEndStr);
-                
+
                 if (backtestDate != null) {
                     if (backtestTimeStart > 0 && backtestTimeEnd > 0) {
-                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, backtestDate, backtestTimeStart, backtestTimeEnd);
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, backtestDate, backtestTimeStart,
+                                        backtestTimeEnd);
                     } else {
                         bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, backtestDate);
                     }
                 } else if (startTimestamp > 0 || endTimestamp > 0) {
                     if (backtestTimeStart > 0 && backtestTimeEnd > 0) {
-                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, null, startTimestamp, endTimestamp, backtestTimeStart, backtestTimeEnd);
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, null, startTimestamp, endTimestamp,
+                                        backtestTimeStart, backtestTimeEnd);
                     } else {
                         bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, startTimestamp, endTimestamp);
                     }
                 } else {
                     if (backtestTimeStart > 0 && backtestTimeEnd > 0) {
-                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, null, 0, 0, backtestTimeStart, backtestTimeEnd);
+                        bt.runBacktest(68, 10, 0.1, stoploss, profitTarget, null, 0, 0, backtestTimeStart,
+                                        backtestTimeEnd);
                     } else {
                         bt.runBacktest(68, 10, 0.1, stoploss, profitTarget);
                     }
@@ -157,7 +161,8 @@ public class Main {
         }
     }
 
-    private static void trade(Automation au, ERobot robot, Configuration config) throws NumberFormatException, IOException, InterruptedException, EToreadorException {
+    private static void trade(Automation au, ERobot robot, Configuration config) throws NumberFormatException,
+                    IOException, InterruptedException, EToreadorException {
         String screenPath = null;
         if (!skipLogin) {
             EWindow.setText("Logging in");
@@ -173,7 +178,7 @@ public class Main {
         double dailyProfitTarget = Double.valueOf(config.getValue("profit.target.daily"));
         long timestamp;
         boolean loop = true;
-        
+
         EWindow.setText("Taking screenshot");
         if (!dryRun) {
             System.out.println("Taking main screen screenshot");
@@ -186,7 +191,7 @@ public class Main {
         EWindow.setText("Getting initial balance");
         double initialBalance = au.getAccountBalance(screenPath);
         System.out.println("Initial balance: " + initialBalance);
-        
+
         // Get instrument prices
         while (loop) {
             EWindow.setText("Taking screenshot");
@@ -199,16 +204,26 @@ public class Main {
                 System.out.println("Loading main screen screenshot from file " + screenPath);
             }
             EWindow.setText("Getting prices");
-            Vector<Double> prices = ia.getPrices(
-                            re,
-                            screenPath,
-                            config.getValue("pattern.instrument.oil.path"),
-                            Double.valueOf(config.getValue("pattern.instrument.oil.threshold")),
-                            config,
-                            config.getValue("test.match.instrument.oil.result"),
-                            tWidth,
-                            tHeight
-                            );
+            Vector<Double> prices = null;
+            try {
+                prices = ia.getPrices(
+                                re,
+                                screenPath,
+                                config.getValue("pattern.instrument.oil.path"),
+                                Double.valueOf(config.getValue("pattern.instrument.oil.threshold")),
+                                config,
+                                config.getValue("test.match.instrument.oil.result"),
+                                tWidth,
+                                tHeight
+                                );
+            } catch (NullPointerException e) {
+                // look if there is welcome dialog because of connection loss
+                // and possibly dismiss it
+                if (au.findAndDismissWelcomeMessage(dryRun))
+                    continue; // dialog found, continue processing
+                else
+                    break; // dialog not found, abandon ship
+            }
             if (ia.getTemplateHeight() > 0 && ia.getTemplateWidth() > 0) {
                 tWidth = ia.getTemplateWidth();
                 tHeight = ia.getTemplateHeight();
@@ -219,7 +234,7 @@ public class Main {
                 timestamp = Calendar.getInstance().getTimeInMillis();
                 System.out.println("Oil sell openPrice: " + sellPrice + ", buy openPrice: " + buyPrice);
                 fm.appendToTxtFile(config.getValue("instrument.oil.log"), "OIL;" + sellPrice + ";" + buyPrice + ";"
-                                                + timestamp + "\n");
+                                + timestamp + "\n");
             } else {
                 throw new EToreadorException("Oil not found");
             }
@@ -228,10 +243,11 @@ public class Main {
             double balance = au.getAccountBalance(screenPath);
             System.out.println("Balance: " + balance);
 
-            /*EWindow.setText("Getting equity value");
-            double equity = au.getEquity(screenPath);
-            System.out.println("Equity: " + equity);
-*/
+            /*
+             * EWindow.setText("Getting equity value");
+             * double equity = au.getEquity(screenPath);
+             * System.out.println("Equity: " + equity);
+             */
             if (initialBalance - balance >= dailyStopLoss) {
                 throw new EToreadorException("Daily stoploss reached: balance: " + balance);
             } else if (balance - initialBalance >= dailyProfitTarget) {
@@ -239,11 +255,11 @@ public class Main {
                 System.out.println("Daily profit target reached: " + (balance - initialBalance));
                 break;
             }
-            
+
             /*
-            EWindow.setText("Getting profit value");
-            double profit = au.getNetProfit(screenPath);
-            System.out.println("Net profit: " + profit);
+             * EWindow.setText("Getting profit value");
+             * double profit = au.getNetProfit(screenPath);
+             * System.out.println("Net profit: " + profit);
              */
             if (!ia.isLongOpen(re, config, dryRun)) {
                 EWindow.setText("Long position not opened");
@@ -251,14 +267,14 @@ public class Main {
             } else {
                 st.markLongOpened();
             }
-            
+
             if (!ia.isShortOpen(re, config, dryRun)) {
                 EWindow.setText("Short position not opened");
                 st.markShortClosed();
             } else {
                 st.markShortOpened();
             }
-            
+
             st.update(sellPrice, buyPrice, balance, 0, timestamp);
             Order o = st.getOrder();
             if (o != null) {
@@ -268,7 +284,7 @@ public class Main {
                 EWindow.setText("No signal");
                 robot.delay(200, 0);
             }
-            
+
             if (o != null && ia.getPosition() != null) {
                 EWindow.setText("Opening trade");
                 Point p = ia.getPosition();
@@ -284,22 +300,23 @@ public class Main {
                 case OPEN_LONG:
                     ia.openLong(buyPos, re, dryRun, config, o.stoploss, o.profitTarget);
                     st.markLongOpened();
-//                    loop = false; ///////////////////////////////////////
+                    // loop = false; ///////////////////////////////////////
                     break;
                 case OPEN_SHORT:
                     ia.openShort(sellPos, re, dryRun, config, o.stoploss, o.profitTarget);
                     st.markShortOpened();
-//                    loop = false; ///////////////////////////////////////
+                    // loop = false; ///////////////////////////////////////
                     break;
                 default:
                     break;
-                
+
                 }
             }
             robot.mouseMove(0, 0);
             int delay = 300;
             for (int i = 0; i < delay; i++) {
-                String text = "Waiting " + (delay-i) + " seconds (B:" + balance + ",L:" + st.isLongOpened() + ",S:" + st.isShortOpened()+",I:" + st.getRemainingIdleCycles() + ")";
+                String text = "Waiting " + (delay - i) + " seconds (B:" + balance + ",L:" + st.isLongOpened() + ",S:"
+                                + st.isShortOpened() + ",I:" + st.getRemainingIdleCycles() + ")";
                 if (o != null) text += ",O:" + o.type;
                 EWindow.setText(text);
                 robot.delay(1000, 0);
