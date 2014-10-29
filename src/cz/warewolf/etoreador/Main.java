@@ -179,6 +179,8 @@ public class Main {
         long timestamp;
         boolean loop = true;
 
+        fm.appendToTxtFile(config.getValue("trade.log"), Calendar.getInstance().getTime() + "START" + "\n");
+        
         EWindow.setText("Taking screenshot");
         if (!dryRun) {
             System.out.println("Taking main screen screenshot");
@@ -264,12 +266,14 @@ public class Main {
             if (!ia.isLongOpen(re, config, dryRun)) {
                 EWindow.setText("Long position not opened");
                 st.markLongClosed();
+                fm.appendToTxtFile(config.getValue("trade.log"), Calendar.getInstance().getTime() + "CLOSE;LONG;OIL" + "\n");
             } else {
                 st.markLongOpened();
             }
 
             if (!ia.isShortOpen(re, config, dryRun)) {
                 EWindow.setText("Short position not opened");
+                fm.appendToTxtFile(config.getValue("trade.log"), Calendar.getInstance().getTime() + "CLOSE;SHORT;OIL" + "\n");
                 st.markShortClosed();
             } else {
                 st.markShortOpened();
@@ -298,11 +302,15 @@ public class Main {
                 i.save();
                 switch (o.type) {
                 case OPEN_LONG:
+                    fm.appendToTxtFile(config.getValue("trade.log"), Calendar.getInstance().getTime() + 
+                                    "OPEN;LONG;OIL;SL:" + o.stoploss + ";PT:" + o.profitTarget + "\n");
                     ia.openLong(buyPos, re, dryRun, config, o.stoploss, o.profitTarget);
                     st.markLongOpened();
                     // loop = false; ///////////////////////////////////////
                     break;
                 case OPEN_SHORT:
+                    fm.appendToTxtFile(config.getValue("trade.log"), Calendar.getInstance().getTime() + 
+                                    "OPEN;SHORT;OIL;SL:" + o.stoploss + ";PT:" + o.profitTarget + "\n");
                     ia.openShort(sellPos, re, dryRun, config, o.stoploss, o.profitTarget);
                     st.markShortOpened();
                     // loop = false; ///////////////////////////////////////
@@ -322,5 +330,6 @@ public class Main {
                 robot.delay(1000, 0);
             }
         }
+        fm.appendToTxtFile(config.getValue("trade.log"), Calendar.getInstance().getTime() + "STOP" + "\n");
     }
 }
