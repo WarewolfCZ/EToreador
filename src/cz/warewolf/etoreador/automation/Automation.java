@@ -563,6 +563,7 @@ public class Automation {
                                 + tmp[2].substring(tmp[2].length() - 5, tmp[2].length() - 3) + ":"
                                 + tmp[2].substring(tmp[2].length() - 2);
                 tmp[2] = tmp[2].replace("  ", " ").replace(" :", ":").replace(": ", ":").replace("I", "1");
+                tmp[2] = tmp[2].replace("N0V", "Nov");
                 System.out.println("date string modified: '" + tmp[2] + "'");
                 try {
                     SimpleDateFormat parserSDF = new SimpleDateFormat("yyyy MMM dd HH:mm", Locale.US);
@@ -610,7 +611,7 @@ public class Automation {
                 ocrOrig += " " + ocrResult;
                 ocrResult = ocrResult.trim().replace(", ", ".").replace(",", ".").replace("'", "").replace("-", "")
                                 .replace("_", "").trim();
-                ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct").replace("ö", "6");
+                ocrResult = ocrResult.replace("  ", " ").replace("O", "0").replace("0ct", "Oct").replace("ö", "6").replace("/", "7");
                 System.out.println("OCR result modified: '" + ocrResult + "'");
                 String[] tmp = ocrResult.split(" ", 2);
                 close = Double.valueOf(tmp[0].replace(" ", ""));
